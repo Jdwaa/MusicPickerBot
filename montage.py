@@ -32,7 +32,7 @@ def create_reel(user_folder, music_url=None):
             print("❌ Не удалось загрузить клипы")
             return None
 
-        # 3. Добавляем переходы (без .fx)
+        # 3. Применяем переходы (без .fx)
         final_clips = []
         for i, clip in enumerate(clips):
             if i == 0:
