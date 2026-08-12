@@ -41,7 +41,7 @@ def create_reel(user_folder, music_url=None):
                 clip = FadeOut(clip, 0.5)
             final_clips.append(clip)
 
-        # 4. Склеиваем всё в одно видео
+        # 4. Склеиваем всё в одно видео (правильный способ!)
         final_video = concatenate_videoclips(final_clips, method="compose")
 
         # 5. Добавляем музыку (если есть)
