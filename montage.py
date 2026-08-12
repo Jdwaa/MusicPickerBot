@@ -2,9 +2,6 @@ import os
 import requests
 from moviepy import *
 
-# ==========================================
-# ОСНОВНАЯ ФУНКЦИЯ МОНТАЖА
-# ==========================================
 def create_reel(user_folder, music_url=None):
     try:
         media_files = [f for f in os.listdir(user_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.mp4', '.mov'))]
@@ -20,7 +17,6 @@ def create_reel(user_folder, music_url=None):
             ext = os.path.splitext(file_name)[1].lower()
 
             if ext in ('.jpg', '.jpeg', '.png'):
-                # Исправлено: with_duration() вместо сложения
                 clip = ImageClip(file_path).resized(height=1080).with_duration(3)
             elif ext in ('.mp4', '.mov'):
                 clip = VideoFileClip(file_path).resized(height=1080)
@@ -33,7 +29,6 @@ def create_reel(user_folder, music_url=None):
             print("❌ Не удалось загрузить клипы")
             return None
 
-        # Добавляем переходы
         final_clips = []
         for i, clip in enumerate(clips):
             if i == 0:
@@ -44,10 +39,8 @@ def create_reel(user_folder, music_url=None):
                 clip = clip.fx(FadeOut, 0.5)
             final_clips.append(clip)
 
-        # Склеиваем
         final_video = concatenate_videoclips(final_clips, method="compose")
 
-        # Музыка
         if music_url:
             try:
                 response = requests.get(music_url, timeout=10)
