@@ -1,18 +1,8 @@
 import os
 import requests
-from PIL import Image
-from io import BytesIO
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 FREESOUND_TOKEN = os.getenv("FREESOUND_API_KEY")
-
-if not HF_TOKEN:
-    raise ValueError("❌ HF_TOKEN не найден!")
-if not FREESOUND_TOKEN:
-    raise ValueError("❌ FREESOUND_API_KEY не найден!")
-
-MODEL = "openai/clip-vit-base-patch32"
-API_URL = f"https://api-inference.huggingface.co/models/{MODEL}"
 
 def analyze_mood(image_path):
     try:
@@ -20,10 +10,14 @@ def analyze_mood(image_path):
             data = f.read()
 
         headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-        response = requests.post(API_URL, headers=headers, data=data, timeout=10)
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32",
+            headers=headers,
+            data=data,
+            timeout=5
+        )
 
         if response.status_code != 200:
-            print(f"⚠️ Ошибка HF API: {response.status_code}")
             return "neutral"
 
         result = response.json()
@@ -37,17 +31,14 @@ def analyze_mood(image_path):
                 "sadness": "sad",
                 "sad": "sad",
                 "calm": "calm",
-                "relaxed": "calm",
-                "neutral": "neutral"
+                "relaxed": "calm"
             }
             return mood_map.get(label, "neutral")
         return "neutral"
 
     except Exception as e:
-        print(f"⚠️ Ошибка при анализе фото: {e}")
+        print(f"⚠️ Ошибка анализа фото: {e}")
         return "neutral"
-
-FREESOUND_SEARCH_URL = "https://freesound.org/apiv2/search/text/"
 
 def search_music(mood, max_results=3):
     tag_map = {
@@ -68,15 +59,12 @@ def search_music(mood, max_results=3):
     }
 
     try:
-        response = requests.get(FREESOUND_SEARCH_URL, params=params, timeout=10)
+        response = requests.get("https://freesound.org/apiv2/search/text/", params=params, timeout=10)
         if response.status_code != 200:
-            print(f"⚠️ Ошибка Freesound API: {response.status_code}")
             return None
 
         data = response.json()
-        results = data.get("results", [])
-
-        for sound in results:
+        for sound in data.get("results", []):
             previews = sound.get("previews", {})
             mp3_url = previews.get("preview-hq-mp3") or previews.get("preview-lq-mp3")
             if mp3_url:
@@ -85,5 +73,5 @@ def search_music(mood, max_results=3):
         return None
 
     except Exception as e:
-        print(f"⚠️ Ошибка поиска музыки: {e}")
+        print(f"⚠️ Ошибка Freesound: {e}")
         return None
