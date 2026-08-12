@@ -97,7 +97,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # КОМАНДА /REEL (реальный монтаж)
 # ==========================================
 async def reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import traceback
+    import gc
     user_id = str(update.message.from_user.id)
     user_folder = os.path.join(UPLOAD_DIR, user_id)
 
@@ -108,9 +108,8 @@ async def reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🧠 Анализирую настроение...")
 
     try:
-        # 1. Анализируем первое фото
-        media_files = [os.path.join(user_folder, f) for f in os.listdir(user_folder)]
-        mood = analyze_mood(media_files[0])
+        # 1. Временно отключаем AI-анализ (экономит память)
+        mood = "neutral"
         await update.message.reply_text(f"🎭 Настроение: {mood}. Ищу музыку...")
 
         # 2. Ищем музыку
@@ -121,25 +120,47 @@ async def reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("🎵 Музыка найдена! Начинаю монтаж...")
 
         # 3. Монтируем рилс
-        await update.message.reply_text("⏳ Монтирую рилс... Это займёт до 2 минут.")
+        await update.message.reply_text("⏳ Монтирую рилс... (Это может занять до 2 минут)")
         output_path = create_reel(user_folder, music_url)
 
+        # Очищаем память после монтажа
+        gc.collect()
+
         if not output_path:
-            await update.message.reply_text("❌ Ошибка при создании видео. Подробности в логах.")
+            await update.message.reply_text("❌ Ошибка при создании видео. Попробуй сжать фото или использовать меньше файлов.")
             return
 
         # 4. Отправляем видео
         await update.message.reply_text("🎬 Готово! Отправляю рилс...")
+        
+        try:
+            with open(output_path, "rb") as video_file:
+                await update.message.reply_video(
+                    video_file, 
+                    caption="🎉 Твой рилс готов!"
+                )
+            # Удаляем видео с сервера после отправки (экономит память)
+            os.remove(output_path)
+        except Exception as send_error:
+            await update.message.reply_text(f"⚠️ Не удалось отправить видео, но оно сохранено на сервере: {output_path}")
 
-        with open(output_path, "rb") as video_file:
-            await update.message.reply_video(video_file, caption="🎉 Твой рилс готов!")
+        # 5. Очищаем папку пользователя (чтобы не накапливать файлы)
+        try:
+            for f in os.listdir(user_folder):
+                os.remove(os.path.join(user_folder, f))
+            os.rmdir(user_folder)
+            print(f"🧹 Папка пользователя {user_id} очищена")
+        except Exception as e:
+            print(f"⚠️ Не удалось очистить папку: {e}")
+
+        # Финальный сбор мусора
+        gc.collect()
 
     except Exception as e:
-        # Логируем полную ошибку в консоль
-        error_trace = traceback.format_exc()
-        print(f"❌ Ошибка в /reel:\n{error_trace}")
-        # Отправляем пользователю краткое сообщение
-        await update.message.reply_text(f"❌ Ошибка: {str(e)[:100]}")
+        error_text = str(e)[:100]
+        await update.message.reply_text(f"❌ Ошибка: {error_text}")
+        print(f"❌ Ошибка в /reel: {e}")
+        gc.collect()
 
 # ==========================================
 # ЗАПУСК БОТА
