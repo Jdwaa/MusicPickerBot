@@ -97,6 +97,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # КОМАНДА /REEL (реальный монтаж)
 # ==========================================
 async def reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    import traceback
     user_id = str(update.message.from_user.id)
     user_folder = os.path.join(UPLOAD_DIR, user_id)
 
@@ -106,32 +107,39 @@ async def reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("🧠 Анализирую настроение...")
 
-    # 1. Анализируем первое фото (или любое другое)
-    media_files = [os.path.join(user_folder, f) for f in os.listdir(user_folder)]
-    mood = analyze_mood(media_files[0])
+    try:
+        # 1. Анализируем первое фото
+        media_files = [os.path.join(user_folder, f) for f in os.listdir(user_folder)]
+        mood = analyze_mood(media_files[0])
+        await update.message.reply_text(f"🎭 Настроение: {mood}. Ищу музыку...")
 
-    await update.message.reply_text(f"🎭 Настроение: {mood}. Ищу музыку...")
+        # 2. Ищем музыку
+        music_url = search_music(mood)
+        if not music_url:
+            await update.message.reply_text("⚠️ Музыка не найдена, делаю без звука.")
+        else:
+            await update.message.reply_text("🎵 Музыка найдена! Начинаю монтаж...")
 
-    # 2. Ищем музыку через Freesound
-    music_url = search_music(mood)
-    if not music_url:
-        await update.message.reply_text("⚠️ Не удалось найти музыку. Использую заглушку.")
-        music_path = None
-    else:
-        await update.message.reply_text("🎵 Музыка найдена! Начинаю монтаж...")
+        # 3. Монтируем рилс
+        await update.message.reply_text("⏳ Монтирую рилс... Это займёт до 2 минут.")
+        output_path = create_reel(user_folder, music_url)
 
-    # 3. Монтируем рилс
-    output_path = create_reel(user_folder, music_url)
+        if not output_path:
+            await update.message.reply_text("❌ Ошибка при создании видео. Подробности в логах.")
+            return
 
-    if not output_path:
-        await update.message.reply_text("❌ Ошибка при монтаже. Попробуй ещё раз.")
-        return
+        # 4. Отправляем видео
+        await update.message.reply_text("🎬 Готово! Отправляю рилс...")
 
-    await update.message.reply_text("🎬 Готово! Отправляю рилс...")
+        with open(output_path, "rb") as video_file:
+            await update.message.reply_video(video_file, caption="🎉 Твой рилс готов!")
 
-    # 4. Отправляем видео
-    with open(output_path, "rb") as video_file:
-        await update.message.reply_video(video_file, caption="🎉 Твой рилс готов!")
+    except Exception as e:
+        # Логируем полную ошибку в консоль
+        error_trace = traceback.format_exc()
+        print(f"❌ Ошибка в /reel:\n{error_trace}")
+        # Отправляем пользователю краткое сообщение
+        await update.message.reply_text(f"❌ Ошибка: {str(e)[:100]}")
 
 # ==========================================
 # ЗАПУСК БОТА
