@@ -14,17 +14,12 @@ def create_reel(user_folder, music_url=None):
 
         media_files.sort()
 
-        # 2. Создаём клипы по одному (чтобы не держать все в памяти)
+        # 2. Загружаем клипы
         clips = []
-        total_files = len(media_files)
-        print(f"📁 Загружаем {total_files} файлов...")
-
-        for idx, file_name in enumerate(media_files, 1):
+        for file_name in media_files:
             file_path = os.path.join(user_folder, file_name)
             ext = os.path.splitext(file_name)[1].lower()
 
-            print(f"  [{idx}/{total_files}] Загружаю: {file_name}")
-            
             if ext in ('.jpg', '.jpeg', '.png'):
                 clip = ImageClip(file_path).resized(height=720).with_duration(3)
             elif ext in ('.mp4', '.mov'):
@@ -33,16 +28,13 @@ def create_reel(user_folder, music_url=None):
                 continue
 
             clips.append(clip)
-            
-            # Очищаем память после каждого клипа
             gc.collect()
 
         if not clips:
-            print("❌ Не удалось загрузить ни одного клипа")
+            print("❌ Не удалось загрузить клипы")
             return None
 
-        # 3. Применяем переходы по одному клипу
-        print(f"🎬 Добавляем переходы к {len(clips)} клипам...")
+        # 3. Применяем переходы
         final_clips = []
         for i, clip in enumerate(clips):
             if i == 0:
@@ -50,19 +42,14 @@ def create_reel(user_folder, music_url=None):
             if i == len(clips) - 1:
                 clip = FadeOut(clip, 0.5)
             final_clips.append(clip)
-            
-            # Очищаем память после каждого перехода
-            if i % 2 == 0:
-                gc.collect()
+            gc.collect()
 
-        # 4. Склеиваем всё в одно видео
-        print("🔗 Склеиваю клипы...")
+        # 4. СКЛЕИВАЕМ ЧЕРЕЗ concatenate_videoclips (без +)
         final_video = concatenate_videoclips(final_clips, method="compose")
         gc.collect()
 
-        # 5. Добавляем музыку (если есть)
+        # 5. Музыка
         if music_url:
-            print("🎵 Добавляю музыку...")
             try:
                 response = requests.get(music_url, timeout=10)
                 if response.status_code == 200:
@@ -89,18 +76,16 @@ def create_reel(user_folder, music_url=None):
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, f"reel_{user_id}.mp4")
 
-        print("💾 Сохраняю видео...")
         final_video.write_videofile(
             output_path,
             fps=24,
             codec='libx264',
             audio_codec='aac',
-            threads=2,          # Уменьшаем потоки для экономии памяти
+            threads=2,
             logger=None,
             verbose=False
         )
-        
-        # Закрываем клипы и собираем мусор
+
         final_video.close()
         gc.collect()
 
@@ -109,6 +94,5 @@ def create_reel(user_folder, music_url=None):
 
     except Exception as e:
         print(f"❌ Ошибка монтажа: {e}")
-        # Собираем мусор даже при ошибке
         gc.collect()
         return None
