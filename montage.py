@@ -44,11 +44,11 @@ def create_reel(user_folder, music_url=None):
             final_clips.append(clip)
             gc.collect()
 
-        # 4. СКЛЕИВАЕМ ЧЕРЕЗ concatenate_videoclips (без +)
+        # 4. СКЛЕИВАЕМ (правильно, без +)
         final_video = concatenate_videoclips(final_clips, method="compose")
         gc.collect()
 
-        # 5. Музыка
+        # 5. Музыка (если есть)
         if music_url:
             try:
                 response = requests.get(music_url, timeout=10)
