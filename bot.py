@@ -4,6 +4,12 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 # ==========================================
+# ПОДКЛЮЧАЕМ МОДУЛИ МОНТАЖА
+# ==========================================
+from montage import create_reel
+from music_selector import analyze_mood, search_music
+
+# ==========================================
 # ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ
 # ==========================================
 TOKEN = os.getenv("BOT_TOKEN")
@@ -88,7 +94,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Файл сохранён! Всего загружено: {len(os.listdir(user_folder))}")
 
 # ==========================================
-# КОМАНДА /REEL (пока заглушка)
+# КОМАНДА /REEL (реальный монтаж)
 # ==========================================
 async def reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
@@ -98,12 +104,34 @@ async def reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Сначала загрузи фото или видео!")
         return
 
-    await update.message.reply_text("⏳ Начинаю монтаж... Это займёт минуту.")
+    await update.message.reply_text("🧠 Анализирую настроение...")
 
-    # 🔥 ВСТАВЬ СЮДА ВЫЗОВ montage.py
-    # Сейчас просто заглушка
+    # 1. Анализируем первое фото (или любое другое)
+    media_files = [os.path.join(user_folder, f) for f in os.listdir(user_folder)]
+    mood = analyze_mood(media_files[0])
 
-    await update.message.reply_text("🎉 Готово! Вот твой рилс (пока заглушка).")
+    await update.message.reply_text(f"🎭 Настроение: {mood}. Ищу музыку...")
+
+    # 2. Ищем музыку через Freesound
+    music_url = search_music(mood)
+    if not music_url:
+        await update.message.reply_text("⚠️ Не удалось найти музыку. Использую заглушку.")
+        music_path = None
+    else:
+        await update.message.reply_text("🎵 Музыка найдена! Начинаю монтаж...")
+
+    # 3. Монтируем рилс
+    output_path = create_reel(user_folder, music_url)
+
+    if not output_path:
+        await update.message.reply_text("❌ Ошибка при монтаже. Попробуй ещё раз.")
+        return
+
+    await update.message.reply_text("🎬 Готово! Отправляю рилс...")
+
+    # 4. Отправляем видео
+    with open(output_path, "rb") as video_file:
+        await update.message.reply_video(video_file, caption="🎉 Твой рилс готов!")
 
 # ==========================================
 # ЗАПУСК БОТА
